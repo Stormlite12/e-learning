@@ -1,6 +1,6 @@
 
 import { boolean, json } from "drizzle-orm/pg-core";
-import { pgTable, integer , varchar } from "drizzle-orm/pg-core"
+import { pgTable, integer , varchar , text } from "drizzle-orm/pg-core"
 
 
 export const usersTable = pgTable('users', {
@@ -20,5 +20,7 @@ export const coursesTable=pgTable("courses",{
   level:varchar().notNull(),
   category:varchar(),
   courseJson:json(),
-  userEmail:varchar('userEmail').references(()=>usersTable.email)
+  bannerImage: text(),
+  courseContent:json().default({}),
+  userEmail:varchar('userEmail').references(()=>usersTable.email).notNull()
 })
