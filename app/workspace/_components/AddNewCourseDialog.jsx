@@ -25,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, Sparkle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 
 function AddNewCourseDialog({ children }) {
@@ -61,7 +62,11 @@ function AddNewCourseDialog({ children }) {
                 ...formData,
                 courseId:courseId
             });
-            console.log(result.data);
+      
+            if(result.data.resp=='limit exceed'){
+                toast.warning('Please Subscribe to Plan!')
+                router.push('/workspace/billing')
+            }
             setLoading(false)
             router.push('/workspace/edit-course/'+result.data?.courseId);
         }

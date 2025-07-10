@@ -50,28 +50,18 @@ export async function POST(req) {
             try {
                 const result = await model.generateContent(PROMPT + JSON.stringify(userInput));
                 const response = await result.response;
-                const text = response.text();
-
-                console.log(`Raw AI response for ${chapter.chapterName}:`, text);
-
-                // Enhanced JSON cleaning
-                let cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
                 
-                // Fix common JSON escape issues
-                cleanedText = cleanedText
-                    .replace(/\\"/g, '"')           // Fix escaped quotes
-                    .replace(/\\'/g, "'")           // Fix escaped single quotes
-                    .replace(/\\\\/g, '\\')         // Fix double backslashes
-                    .replace(/\\n/g, '\\n')         // Keep newlines properly escaped
-                    .replace(/\\t/g, '\\t')         // Keep tabs properly escaped
-                    .replace(/[\u0000-\u001F\u007F-\u009F]/g, ''); // Remove control characters
-
+                console.log(response.candidates[0].content.parts[0].text);
+                
+                const rawResp = response.candidates[0].content.parts[0].text;
+                const rawJson = rawResp.replace(/```json/g, '').replace(/```/g, '');
+                
                 let JSONResp;
                 try {
-                    JSONResp = JSON.parse(cleanedText);
+                    JSONResp = JSON.parse(rawJson);
                 } catch (parseError) {
                     console.error('JSON parse error:', parseError);
-                    console.error('Cleaned text:', cleanedText);
+                    console.error('Raw JSON:', rawJson);
                     
                     // Create fallback structure
                     JSONResp = {
@@ -99,11 +89,14 @@ export async function POST(req) {
                 console.error(`Error generating content for ${chapter.chapterName}:`, chapterError);
                 // Return fallback content for this chapter
                 return {
-                    chapterName: chapter.chapterName,
-                    topics: chapter.topics.map(topic => ({
-                        topic: topic,
-                        content: `<h3>${topic}</h3><p>Content for ${topic} will be generated.</p>`
-                    }))
+                    youtubeVideo: [],
+                    courseData: {
+                        chapterName: chapter.chapterName,
+                        topics: chapter.topics.map(topic => ({
+                            topic: topic,
+                            content: `<h3>${topic}</h3><p>Content for ${topic} will be generated.</p>`
+                        }))
+                    }
                 };
             }
         });
@@ -137,7 +130,7 @@ const GetYoutubeVideo = async (topic) => {
         const params = {
             part: 'snippet',
             q: topic,
-            maxResults: 3, // Fixed typo: was 'maxResult'
+            maxResults: 3,
             type: 'video',
             key: process.env.YOUTUBE_API_KEY
         };

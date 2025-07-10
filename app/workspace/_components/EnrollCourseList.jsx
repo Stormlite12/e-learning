@@ -13,10 +13,6 @@ function EnrollCourseList({course, enrollCourse}) {
         GetEnrolledCourse();
     },[])
 
-      const handleViewCourse = () => {
-        router.push(`/workspace/edit-course/${course.cid}`);
-    };
-
     const GetEnrolledCourse = async () => {
         const result = await axios.get('/api/enroll-course');
         console.log(result.data);

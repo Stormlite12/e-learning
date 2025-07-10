@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*":["./*"]
+    },
     "target": "ES2017",
     "lib": [
       "dom",
@@ -28,7 +32,7 @@
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx"
-  ],
+, "app/workspace/billing/page.jsx"  ],
   "exclude": [
     "node_modules"
   ]
