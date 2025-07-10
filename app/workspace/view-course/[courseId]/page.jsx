@@ -3,7 +3,7 @@ import React from 'react'
 import EditCourse from '../../edit-course/[courseId]/page'
 
 function ViewCourse() {
-  //  const {courseId}=useParams();
+
   return ( 
    
     <div>

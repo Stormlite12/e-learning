@@ -9,9 +9,12 @@ import Link from 'next/link';
 
 function EnrollCourseCard({course,enrollCourse}) {
     const courseJson = course?.courseJson?.course;
-    const CalculatePerProgress=()=>{
-        return (enrollCourse?.completedChapters?.length??0/course?.courseContent?.length)*100
+    const CalculatePerProgress = () => {
+    if (!enrollCourse?.completedChapters || !course?.courseContent?.length) {
+        return 0;
     }
+    return Math.round((enrollCourse.completedChapters.length / course.courseContent.length) * 100);
+}
 
   return (
       <div className='border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-300 bg-white group h-full flex flex-col'>
