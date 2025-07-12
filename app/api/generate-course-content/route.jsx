@@ -11,14 +11,12 @@ export async function POST(req) {
         const PROMPT = `Generate HTML content based on a given chapter name and a list of topics. Return the response in JSON format using the schema below.
 
                         Requirements:
-
-                        Each topic should have its own HTML-formatted content.
-                        Content should be educational, detailed, and well-structured.
-                        Use proper HTML tags like <h3>, <p>, <ul>, <li>, <strong>, <em>, <code>, etc.
-                        Make content engaging and informative.
-                        IMPORTANT: Escape all quotes and special characters properly in JSON.
-
-                        The response must strictly follow the provided JSON structure.
+                        - Each topic should have its own HTML-formatted content.
+                        - Content should be educational, detailed, and well-structured.
+                        - Use proper HTML tags like <h3>, <p>, <ul>, <li>, <strong>, <em>, <code>, etc.
+                        - Make content engaging and informative.
+                        - IMPORTANT: Escape all quotes and special characters properly in JSON.
+                        - Keep content concise but comprehensive (2-3 paragraphs per topic max).
 
                         JSON Schema:
                         {
@@ -38,75 +36,70 @@ export async function POST(req) {
 
         // Initialize the Google Generative AI client
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-        // Generate content for all chapters
-        const promises = chapters.map(async (chapter) => {
-            const userInput = {
-                chapterName: chapter.chapterName,
-                topics: chapter.topics
-            };
-
-            try {
-                const result = await model.generateContent(PROMPT + JSON.stringify(userInput));
-                const response = await result.response;
-                
-                console.log(response.candidates[0].content.parts[0].text);
-                
-                const rawResp = response.candidates[0].content.parts[0].text;
-                const rawJson = rawResp.replace(/```json/g, '').replace(/```/g, '');
-                
-                let JSONResp;
-                try {
-                    JSONResp = JSON.parse(rawJson);
-                } catch (parseError) {
-                    console.error('JSON parse error:', parseError);
-                    console.error('Raw JSON:', rawJson);
-                    
-                    // Create fallback structure
-                    JSONResp = {
-                        chapterName: chapter.chapterName,
-                        topics: chapter.topics.map(topic => ({
-                            topic: topic,
-                            content: `<h3>${topic}</h3><p>Content for ${topic} will be generated.</p>`
-                        }))
-                    };
-                }
-
-                const youtubeData = await GetYoutubeVideo(chapter?.chapterName);
-                
-                console.log({
-                    youtubeVideo: youtubeData,
-                    courseData: JSONResp
-                });
-                 
-                return {
-                    youtubeVideo: youtubeData,
-                    courseData: JSONResp
-                };
-
-            } catch (chapterError) {
-                console.error(`Error generating content for ${chapter.chapterName}:`, chapterError);
-                // Return fallback content for this chapter
-                return {
-                    youtubeVideo: [],
-                    courseData: {
-                        chapterName: chapter.chapterName,
-                        topics: chapter.topics.map(topic => ({
-                            topic: topic,
-                            content: `<h3>${topic}</h3><p>Content for ${topic} will be generated.</p>`
-                        }))
-                    }
-                };
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-2.0-flash-exp", // Use faster model
+            generationConfig: {
+                temperature: 0.7,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 2048, // Limit output tokens for faster generation
             }
         });
 
-        const courseContent = await Promise.all(promises);
+        // Batch process chapters with concurrency limit
+        const batchSize = 3; // Process 3 chapters at a time
+        const courseContent = [];
 
-        //save to db
+        for (let i = 0; i < chapters.length; i += batchSize) {
+            const batch = chapters.slice(i, i + batchSize);
+            
+            const batchPromises = batch.map(async (chapter, index) => {
+                const userInput = {
+                    chapterName: chapter.chapterName,
+                    topics: chapter.topics
+                };
+
+                try {
+                    // Start both AI generation and YouTube search in parallel
+                    const [aiResult, youtubeData] = await Promise.all([
+                        generateAIContent(model, PROMPT, userInput),
+                        GetYoutubeVideo(chapter?.chapterName)
+                    ]);
+
+                    return {
+                        youtubeVideo: youtubeData,
+                        courseData: aiResult
+                    };
+
+                } catch (chapterError) {
+                    console.error(`Error generating content for ${chapter.chapterName}:`, chapterError);
+                    // Return fallback content for this chapter
+                    return {
+                        youtubeVideo: [],
+                        courseData: {
+                            chapterName: chapter.chapterName,
+                            topics: chapter.topics.map(topic => ({
+                                topic: topic,
+                                content: `<h3>${topic}</h3><p>Content for ${topic} will be generated later.</p>`
+                            }))
+                        }
+                    };
+                }
+            });
+
+            const batchResults = await Promise.all(batchPromises);
+            courseContent.push(...batchResults);
+            
+            // Optional: Add small delay between batches to avoid rate limiting
+            if (i + batchSize < chapters.length) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
+        // Save to database
         const dbResp = await db.update(coursesTable).set({
-            courseContent:courseContent
-        }).where(eq(coursesTable.cid,courseId));
+            courseContent: courseContent
+        }).where(eq(coursesTable.cid, courseId));
 
         return NextResponse.json({
             courseId: courseId,
@@ -123,31 +116,82 @@ export async function POST(req) {
     }
 }
 
+// Separate function for AI content generation with timeout
+async function generateAIContent(model, prompt, userInput) {
+    const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('AI generation timeout')), 15000) // 15 second timeout
+    );
+
+    const generationPromise = (async () => {
+        const result = await model.generateContent(prompt + JSON.stringify(userInput));
+        const response = await result.response;
+        
+        const rawResp = response.candidates[0].content.parts[0].text;
+        const rawJson = rawResp.replace(/```json/g, '').replace(/```/g, '').trim();
+        
+        try {
+            return JSON.parse(rawJson);
+        } catch (parseError) {
+            console.error('JSON parse error:', parseError);
+            console.error('Raw JSON:', rawJson);
+            
+            // Create fallback structure
+            return {
+                chapterName: userInput.chapterName,
+                topics: userInput.topics.map(topic => ({
+                    topic: topic,
+                    content: `<h3>${topic}</h3><p>Content for ${topic} covers the fundamental concepts and practical applications.</p>`
+                }))
+            };
+        }
+    })();
+
+    return Promise.race([generationPromise, timeoutPromise]);
+}
+
+// Optimized YouTube API call with caching
 const YOUTUBE_BASE_URL = 'https://www.googleapis.com/youtube/v3/search';
+const youtubeCache = new Map(); // Simple in-memory cache
 
 const GetYoutubeVideo = async (topic) => {
     try {
+        // Check cache first
+        const cacheKey = topic.toLowerCase().trim();
+        if (youtubeCache.has(cacheKey)) {
+            return youtubeCache.get(cacheKey);
+        }
+
         const params = {
             part: 'snippet',
-            q: topic,
-            maxResults: 3,
+            q: topic + ' tutorial', // Add 'tutorial' for better educational results
+            maxResults: 2, // Reduced from 3 to 2 for faster response
             type: 'video',
+            order: 'relevance',
+            videoDefinition: 'high',
+            videoDuration: 'medium', // Prefer medium-length videos
             key: process.env.YOUTUBE_API_KEY
         };
 
-        const resp = await axios.get(YOUTUBE_BASE_URL, { params });
-        const youtubeVideoListResp = resp.data.items;
-        const youtubeVideoList = [];
-        
-        youtubeVideoListResp.forEach(item => {
-            const data = {
-                videoId: item.id?.videoId,
-                title: item?.snippet?.title
-            };
-            youtubeVideoList.push(data);
+        // Set timeout for YouTube API
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+        const resp = await axios.get(YOUTUBE_BASE_URL, { 
+            params,
+            signal: controller.signal,
+            timeout: 5000
         });
         
-        console.log("youtubeVideoList", youtubeVideoList);
+        clearTimeout(timeoutId);
+
+        const youtubeVideoList = resp.data.items.map(item => ({
+            videoId: item.id?.videoId,
+            title: item?.snippet?.title
+        }));
+        
+        // Cache the result
+        youtubeCache.set(cacheKey, youtubeVideoList);
+        
         return youtubeVideoList;
     } catch (error) {
         console.error('Error fetching YouTube videos:', error);
