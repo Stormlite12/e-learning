@@ -16,6 +16,28 @@ function CourseInfo({course,viewCourse}) {
     const [currentStep, setCurrentStep] = useState('');
     const router=useRouter();
 
+    function getTotalDuration(chapters) {
+    if (!chapters) return '0 min';
+    let totalMinutes = 0;
+    chapters.forEach(chap => {
+        // Extract number from "45 minutes" or "1 hour 30 minutes"
+        const hourMatch = chap.duration.match(/(\d+)\s*hour/);
+        const minMatch = chap.duration.match(/(\d+)\s*min/);
+        if (hourMatch) totalMinutes += parseInt(hourMatch[1], 10) * 60;
+        if (minMatch) totalMinutes += parseInt(minMatch[1], 10);
+        // fallback: if only "45 minutes"
+        if (!hourMatch && !minMatch) {
+            const onlyNum = chap.duration.match(/(\d+)/);
+            if (onlyNum) totalMinutes += parseInt(onlyNum[1], 10);
+        }
+    });
+    // Format as "X hr Y min"
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    if (hours > 0) return `${hours} hr${hours > 1 ? 's' : ''} ${mins} min`;
+    return `${mins} min`;
+}
+
     const generateCourseContent = async () => {
         setLoading(true);
         setProgress(0);
@@ -83,7 +105,7 @@ function CourseInfo({course,viewCourse}) {
                         <Clock className='text-blue-500'/>
                         <section>
                             <h2 className='font-bold'>Duration</h2>
-                            <h2>2 Hours</h2>
+                        <h2>{getTotalDuration(courseLayout?.chapters)}</h2>
                         </section>
                     </div>
                     <div className='flex gap-5 items-center p-3 rounded-lg shadow'>
