@@ -8,28 +8,56 @@ import { useUser } from "@clerk/nextjs";
 import axios from "axios";
 import CourseCard from "./CourseCard";
 
-function CourseList(){
-    const [courseList,setCourseList] = useState([]);
-    
-    const {user}=useUser();
+function CourseList() {
+    const [courseList, setCourseList] = useState([]);
+    const [availableCourses, setAvailableCourses] = useState([]);
 
-    useEffect(()=>{
-        user&&GetCourseList()
-    },[user])
+    const { user } = useUser();
 
-    const GetCourseList= async()=>{
-        const result= await axios.get('/api/courses');
+    useEffect(() => {
+        user && GetCourseList()
+    }, [user])
+
+    const GetCourseList = async () => {
+        const result = await axios.get('/api/courses');
         console.log(result.data);
         setCourseList(result.data);
     }
-    
-    return(
+
+    const GetAvailableCourses = async () => {
+        setIsLoading(true);
+        try {
+            const allCoursesResult = await axios.get('/api/courses?courseId=0');
+            const allCourses = allCoursesResult.data || [];
+            console.log('All courses:', allCourses);
+
+            const enrolledResult = await axios.get('/api/enroll-course');
+            console.log('Enrolled courses:', enrolledResult.data);
+            // Use 'cid' for both
+            const enrolledCourseIds = enrolledResult.data.map(
+                enrolled => String(enrolled.courses.cid).trim()
+            );
+
+            const notEnrolledCourses = allCourses.filter(
+                course => !enrolledCourseIds.includes(String(course.cid).trim())
+            );
+
+            setAvailableCourses(notEnrolledCourses);
+            console.error('Error fetching courses:', error);
+            setAvaila
+        } catch (error) {
+            bleCourses([]);
+        }
+        setIsLoading(false);
+    }
+
+    return (
         <div className="mt-10">
             <div className="flex items-center justify-between mb-6">
                 <h2 className="font-bold text-3xl">Course List</h2>
             </div>
-            
-            {courseList?.length == 0 ? 
+
+            {availableCourses?.length == 0 ?
                 <div className="flex p-10 items-center justify-center flex-col border-2 border-dashed border-gray-300 rounded-xl mt-5 bg-gray-50">
                     <Image src={'/education.png'} alt='Online Education' width={120} height={120} />
                     <h2 className="my-4 text-xl font-bold text-gray-700 text-center">
