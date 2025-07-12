@@ -1,6 +1,7 @@
 import React from 'react';
 import { Clock, BookOpen, Play, CheckCircle } from 'lucide-react';
 
+
 function ChapterTopicList({ course, enrollCourse }) {
     const courseLayout = course?.courseJson?.course;
     
@@ -88,7 +89,7 @@ function ChapterTopicList({ course, enrollCourse }) {
                                             : 'bg-gray-50 hover:bg-gray-100'
                                     }`}
                                 >
-                                    <CheckCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
+                                    <BookOpen className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
                                         isCompleted ? 'text-green-600' : 'text-green-500'
                                     }`} />
                                     <div>
