@@ -77,7 +77,7 @@ function CourseInfo({course,viewCourse}) {
             toast.success("Course Generated Successfully!");
             
             setTimeout(() => {
-                router.replace('/workspace');
+                router.replace('/explore');
             }, 1000);
 
         } catch (error) {
