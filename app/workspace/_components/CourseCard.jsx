@@ -9,7 +9,7 @@ import { useState } from 'react';
 
 function CourseCard({ course }) {
     const router = useRouter();
-    const [loading,setLoading] = useState(false);
+    const [loading, setLoading] = useState(false);
     const courseLayout = course?.courseJson?.course;
 
     const handleViewCourse = () => {
@@ -22,20 +22,25 @@ function CourseCard({ course }) {
     // };
 
 
-    const onEnrollCourse=async()=>{
-        try{ setLoading(true);
+    const onEnrollCourse = async () => {
+        try {
+            setLoading(true);
 
-        const result = await axios.post('/api/enroll-course',{
-            courseId:course?.cid
-        })
-        console.log(result.data);
-        if(result.data.resp){
-            toast.warning('Already Enrolled');
-        }
+            const result = await axios.post('/api/enroll-course', {
+                courseId: course?.cid
+            })
+            console.log(result.data);
+            if (result.data.resp) {
+                toast.warning('Already Enrolled');
+            }
+            else {
+                toast.success('Successfully enrolled! Check your learning dashboard.');
+                router.push('/workspace/my-learning');
+            }
 
-        setLoading(false);
+            setLoading(false);
         }
-        catch (e){
+        catch (e) {
             toast.error('server side error');
             setLoading(false);
         }
@@ -46,9 +51,9 @@ function CourseCard({ course }) {
             {/* Banner Image */}
             <div className='relative h-44 w-full overflow-hidden flex-shrink-0'>
                 {course?.bannerImage ? (
-                    <Image 
-                        src={course.bannerImage} 
-                        alt={courseLayout?.name || 'Course banner'} 
+                    <Image
+                        src={course.bannerImage}
+                        alt={courseLayout?.name || 'Course banner'}
                         fill
                         className='object-cover group-hover:scale-105 transition-transform duration-300'
                     />
@@ -57,14 +62,14 @@ function CourseCard({ course }) {
                         <Book className='w-12 h-12 text-white opacity-70' />
                     </div>
                 )}
-                
+
                 {/* Course Level Badge */}
                 <div className='absolute top-2 left-2'>
                     <span className='bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-semibold text-gray-700'>
                         {courseLayout?.level || course.level}
                     </span>
                 </div>
-                
+
                 {/* Video Indicator */}
                 {courseLayout?.includeVideo && (
                     <div className='absolute top-2 right-2'>
@@ -133,21 +138,22 @@ function CourseCard({ course }) {
                 )} */}
 
                 {/* Action Button - Conditional based on content status */}
-                {course.courseContent?.length?(
-                    <Button 
+                {course.courseContent?.length ? (
+                    <Button
                         onClick={onEnrollCourse}
                         className='w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 text-sm mt-auto'
-                        disabled ={loading}
+                        disabled={loading}
                     >
                         <Play className="mr-2 w-4 h-4" />
                         Enroll
                     </Button>
+
                 ) : (
-                    <Button 
+                    <Button
                         onClick={handleViewCourse}
                         className='w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 text-sm mt-auto'
                         variant="outline"
-                    >{loading?<LoaderCircle className='animate-spin' />:
+                    >{loading ? <LoaderCircle className='animate-spin' /> :
                         <Settings className="mr-2 w-4 h-4" />}
                         Generate Content
                     </Button>
@@ -160,7 +166,7 @@ function CourseCard({ course }) {
                     <span>Created recently</span>
                     <div className='flex items-center gap-1'>
                         <Users className='w-3 h-3' />
-                        <span>{course.courseContent?.length? 'Ready to learn' : 'In progress'}</span>
+                        <span>{course.courseContent?.length ? 'Ready to learn' : 'In progress'}</span>
                     </div>
                 </div>
             </div>
