@@ -15,7 +15,7 @@ function WelcomeBanner(){
                         <Brain className="w-6 h-6 text-white" />
                     </div>
                     <h1 className="font-bold text-3xl md:text-4xl text-white"> 
-                        Welcome to Edu-Care
+                        Welcome to GenCourse
                     </h1>
                 </div>
                 

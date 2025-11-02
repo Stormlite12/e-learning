@@ -13,7 +13,7 @@ export default function Home() {
       <nav className="container mx-auto py-4 px-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Brain size={30} className="text-primary" />
-          <h1 className="text-2xl font-bold text-primary">Edu-Care</h1>
+          <h1 className="text-2xl font-bold text-primary">Gen-Course</h1>
         </div>
         <div className="flex items-center gap-4">
           <Link href="/workspace" className="text-gray-600 hover:text-primary transition-colors">
@@ -81,7 +81,7 @@ export default function Home() {
       <section className="bg-white py-16">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Why Choose Edu-Care?</h2>
+            <h2 className="text-3xl font-bold mb-4">Why Choose GenCourse?</h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
               Our AI-powered platform creates personalized learning experiences with cutting-edge technology
             </p>
@@ -178,7 +178,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center gap-2 mb-4 md:mb-0">
               <Brain size={24} />
-              <h3 className="text-xl font-bold">Edu-Care</h3>
+              <h3 className="text-xl font-bold">GenCourse</h3>
             </div>
             
             <div className="flex items-center gap-6">
@@ -189,7 +189,7 @@ export default function Home() {
           </div>
           
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>© {new Date().getFullYear()} Edu-Care. Empowering minds with AI-powered education.</p>
+            <p>© {new Date().getFullYear()} GenCourse. Empowering minds with AI-powered education.</p>
           </div>
         </div>
       </footer>
