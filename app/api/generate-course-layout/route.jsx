@@ -26,20 +26,31 @@ Schema:
     "string"]
     }]}
 }
-, User Input:`
+, User Input:`;
+
+// ✅ ADDED: Generate unique ID function
+function generateUniqueId() {
+    return `course_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
 
 export async function POST(req) {
     try {
         const { courseId, ...formData } = await req.json();
         const user = await currentUser();
         const {has} = await auth();
-        const hasPremiumAccess = has({plan:'starter'})
+        const hasPremiumAccess = has({plan:'starter'});
+
+        console.log('📝 Form Data:', formData);
 
         // Initialize the Google Generative AI client
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-        // Get the model
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
+            generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 4096, // ✅ INCREASED: More tokens for complete response
+            }
+        });
 
         // If user already created any course and is not premium, block further creation
         if (!hasPremiumAccess) {
@@ -51,19 +62,40 @@ export async function POST(req) {
         }
 
         // Generate content
+        console.log('🤖 Generating course layout...');
         const result = await model.generateContent(PROMPT + JSON.stringify(formData));
         const response = await result.response;
         const text = response.text();
 
-        console.log('Raw response:', text);
+        console.log('📄 Raw response length:', text.length);
+        console.log('📄 Raw response preview:', text.substring(0, 200));
 
-        // Clean up the JSON response
-        const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const JSONResp = JSON.parse(cleanedText);
+        // ✅ IMPROVED: Better JSON extraction
+        let cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
         
-        // Debug: Check if bannerImagePrompt exists
-        console.log('Full JSON Response:', JSONResp);
-        console.log('Banner Image Prompt:', JSONResp?.course?.bannerImagePrompt);
+        // Extract JSON between first { and last }
+        const firstBrace = cleanedText.indexOf('{');
+        const lastBrace = cleanedText.lastIndexOf('}');
+        
+        if (firstBrace === -1 || lastBrace === -1) {
+            throw new Error('No valid JSON found in response');
+        }
+        
+        cleanedText = cleanedText.substring(firstBrace, lastBrace + 1);
+        console.log('🧹 Cleaned JSON length:', cleanedText.length);
+
+        let JSONResp;
+        try {
+            JSONResp = JSON.parse(cleanedText);
+        } catch (parseError) {
+            console.error('❌ JSON Parse Error:', parseError.message);
+            console.error('📄 Failed JSON:', cleanedText.substring(0, 500));
+            throw new Error(`Failed to parse AI response: ${parseError.message}`);
+        }
+        
+        console.log('✅ JSON parsed successfully');
+        console.log('📚 Course Name:', JSONResp?.course?.name);
+        console.log('📑 Chapters:', JSONResp?.course?.chapters?.length);
         
         const ImagePrompt = JSONResp?.course?.bannerImagePrompt;
         
@@ -71,81 +103,65 @@ export async function POST(req) {
         let bannerImageUrl = null;
         
         if (ImagePrompt && ImagePrompt.trim()) {
-            console.log('Attempting to generate image with prompt:', ImagePrompt);
+            console.log('🎨 Generating banner image...');
             
             try {
-                // Check if HuggingFace API key exists
                 if (!process.env.HUGGINGFACE_API_KEY) {
-                    console.error('HUGGINGFACE_API_KEY not found in environment variables');
+                    console.error('❌ HUGGINGFACE_API_KEY not found');
                     throw new Error('HuggingFace API key not configured');
                 }
                 
                 const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
                 
-                // Use a more reliable model and add timeout
-                const imageBlob = await Promise.race([
-                    hf.textToImage({
-                        model: "black-forest-labs/FLUX.1-schnell", // More reliable model
-                        inputs: ImagePrompt.substring(0, 500), // Limit prompt length
-                        parameters: {
-                            width: 1024,
-                            height: 576,
-                            num_inference_steps: 4, // Faster generation
-                        }
-                    }),
-                    new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Image generation timeout')), 30000)
-                    )
-                ]);
+                const imageBlob = await hf.textToImage({
+                    model: "black-forest-labs/FLUX.1-schnell",
+                    inputs: ImagePrompt.substring(0, 500),
+                    parameters: {
+                        width: 1024,
+                        height: 576,
+                        num_inference_steps: 4,
+                    }
+                });
 
-                if (imageBlob) {
-                    console.log('Image blob received, converting to base64...');
-                    
-                    // Convert blob to base64
-                    const imageBuffer = await imageBlob.arrayBuffer();
-                    const base64Image = Buffer.from(imageBuffer).toString('base64');
-                    bannerImageUrl = `data:image/png;base64,${base64Image}`;
-                    
-                    console.log('Banner image generated successfully');
-                } else {
-                    console.log('No image blob received');
-                }
+                const imageBuffer = await imageBlob.arrayBuffer();
+                const base64Image = Buffer.from(imageBuffer).toString('base64');
+                bannerImageUrl = `data:image/png;base64,${base64Image}`;
+                console.log('✅ Banner image generated');
                 
             } catch (imageError) {
-                console.error('Error generating banner image:', imageError);
-                
-                // Fallback: Use a placeholder image or default banner
-                bannerImageUrl = generatePlaceholderImage(formData.name || 'Course');
+                console.error('⚠️ Banner generation failed:', imageError.message);
             }
-        } else {
-            console.log('No valid image prompt found');
-            // Generate placeholder image
-            bannerImageUrl = generatePlaceholderImage(formData.name || 'Course');
         }
 
-        console.log('Final banner image URL:', bannerImageUrl ? 'Generated' : 'Null');
+        // ✅ FIXED: Correct variable mapping from JSONResp
+        const courseData = JSONResp.course;
+        const newCourseId = courseId || generateUniqueId();
 
-        // Save to database
+        console.log('💾 Saving to database...');
+        
         const dbResult = await db.insert(coursesTable).values({
-            cid: courseId,
-            name: formData.name,
-            description: formData.courseDescription || null,
-            noOfChapters: parseInt(formData.courseChapters) || 1,
-            includeVideo: formData.includeVideo || false,
-            level: formData.level,
-            category: formData.category,
-            courseJson: JSON.stringify(JSONResp),
+            cid: newCourseId,
+            name: courseData.name,
+            description: courseData.courseDescription,
+            noOfChapters: courseData.noOfChapters,
+            level: courseData.level,
+            category: courseData.category,
+            includeVideo: courseData.includeVideo,
+            courseJson: JSONResp, // Store the full response
             bannerImage: bannerImageUrl,
-            userEmail: user?.primaryEmailAddress?.emailAddress,
-        });
+            userEmail: user.primaryEmailAddress.emailAddress
+        }).returning({ cid: coursesTable.cid });
+
+        console.log('✅ Course saved successfully');
 
         return NextResponse.json({ 
-            courseId: courseId,
+            courseId: dbResult[0].cid,
+            courseLayout: JSONResp,
             bannerGenerated: bannerImageUrl ? true : false
         });
 
     } catch (error) {
-        console.error('Error in generate-course-layout:', error);
+        console.error('❌ Error in generate-course-layout:', error);
         return NextResponse.json(
             { error: 'Failed to generate course layout', details: error.message },
             { status: 500 }
@@ -156,7 +172,6 @@ export async function POST(req) {
 // Fallback function to generate a placeholder image
 function generatePlaceholderImage(courseName) {
     try {
-        // Create a simple SVG placeholder
         const svg = `
             <svg width="1024" height="576" xmlns="http://www.w3.org/2000/svg">
                 <defs>
@@ -168,7 +183,7 @@ function generatePlaceholderImage(courseName) {
                 <rect width="100%" height="100%" fill="url(#grad1)"/>
                 <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="48" font-weight="bold" 
                       text-anchor="middle" dy=".3em" fill="white">
-                    ${courseName.substring(0, 20)}
+                    ${courseName.substring(0, 30)}
                 </text>
             </svg>
         `;
@@ -176,7 +191,7 @@ function generatePlaceholderImage(courseName) {
         const base64Svg = Buffer.from(svg).toString('base64');
         return `data:image/svg+xml;base64,${base64Svg}`;
     } catch (error) {
-        console.error('Error generating placeholder image:', error);
+        console.error('❌ Placeholder generation failed:', error);
         return null;
     }
 }

@@ -145,3 +145,31 @@
     --sidebar-ring: oklch(0.439 0 0);
   }
 }
+
+.prose {
+  @apply text-gray-700 leading-relaxed;
+}
+
+.prose p {
+  @apply mb-4;
+}
+
+.prose ul, .prose ol {
+  @apply mb-4 ml-6;
+}
+
+.prose ul {
+  @apply list-disc;
+}
+
+.prose ol {
+  @apply list-decimal;
+}
+
+.prose strong {
+  @apply font-semibold text-gray-900;
+}
+
+.prose code {
+  @apply bg-gray-100 px-2 py-1 rounded text-sm;
+}
