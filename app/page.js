@@ -13,7 +13,7 @@ export default function Home() {
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Brain className="text-primary" size={32} />
-            <span className="text-2xl font-bold">GenCourse</span>
+            <span className="text-2xl font-bold">CourseCraft</span>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/workspace">
@@ -138,9 +138,9 @@ export default function Home() {
           <div className="flex flex-col md:flex-row justify-between items-center text-base text-gray-600">
             <div className="flex items-center gap-3 mb-6 md:mb-0">
               <Brain size={28} className="text-primary" />
-              <span className="font-semibold text-xl">GenCourse</span>
+              <span className="font-semibold text-xl">CourseCraft</span>
             </div>
-            <p className="text-lg">© 2025 GenCourse. All rights reserved.</p>
+            <p className="text-lg">© 2025 CourseCraft. All rights reserved.</p>
           </div>
         </div>
       </footer>

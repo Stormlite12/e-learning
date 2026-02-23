@@ -98,8 +98,7 @@ export async function POST(req) {
         console.log('📑 Chapters:', JSONResp?.course?.chapters?.length);
         
         const ImagePrompt = JSONResp?.course?.bannerImagePrompt;
-        
-        // Generate banner image with better error handling
+       
         let bannerImageUrl = null;
         
         if (ImagePrompt && ImagePrompt.trim()) {
@@ -126,14 +125,13 @@ export async function POST(req) {
                 const imageBuffer = await imageBlob.arrayBuffer();
                 const base64Image = Buffer.from(imageBuffer).toString('base64');
                 bannerImageUrl = `data:image/png;base64,${base64Image}`;
-                console.log('✅ Banner image generated');
+                console.log('Banner image generated');
                 
             } catch (imageError) {
-                console.error('⚠️ Banner generation failed:', imageError.message);
+                console.error('Banner generation failed:', imageError.message);
             }
         }
 
-        // ✅ FIXED: Correct variable mapping from JSONResp
         const courseData = JSONResp.course;
         const newCourseId = courseId || generateUniqueId();
 
